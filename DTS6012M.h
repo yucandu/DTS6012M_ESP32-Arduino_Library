@@ -6,6 +6,16 @@
 
 #define DTS6012M_I2C_ADDR 0x51  // 7-bit I2C address
 
+struct DTS6012M_Frame {
+    uint16_t primaryDistance;
+    uint16_t primaryCorrection;
+    uint16_t primaryIntensity;
+    uint16_t secondaryDistance;
+    uint16_t secondaryCorrection;
+    uint16_t secondaryIntensity;
+    uint16_t sunlightBase;
+};
+
 class DTS6012M {
 public:
     enum Interface {
@@ -24,9 +34,9 @@ public:
     bool readTestRegister(uint8_t &value);
 
     // ---- UART API ----
-    bool startStream();               // send 0x01 command
-    bool stopStream();                // send 0x02 command
-    bool readFrame(uint16_t &dist);   // parse one UART frame (blocking with timeout)
+    bool startStream();               
+    bool stopStream();                
+    bool readFrame(DTS6012M_Frame &frame);
 
 private:
     Interface _mode;
@@ -41,7 +51,8 @@ private:
 
     // UART helpers
     bool sendCommand(uint8_t cmd);
-    bool readResponse(uint8_t cmd, uint8_t *buf, size_t len, uint32_t timeout = 50);
+    bool readBytes(uint8_t *buf, size_t len, uint32_t timeout = 50);
+    uint16_t crc16(const uint8_t *data, size_t len);
 };
 
 #endif
