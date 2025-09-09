@@ -17,7 +17,7 @@ bool DTS6012M::begin(uint32_t i2cFreq, uint32_t uartBaud) {
         if (!readTestRegister(test)) return false;
         return (test == 0x3B);
     } else {
-        _serial->begin(uartBaud);
+        //_serial->begin(uartBaud);
         delay(50);
         return true;
     }
