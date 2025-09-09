@@ -74,7 +74,7 @@ bool DTS6012M::sendCommand(uint8_t cmd) {
 bool DTS6012M::startStream() { return sendCommand(0x01); }
 bool DTS6012M::stopStream()  { return sendCommand(0x02); }
 
-bool DTS6012M::readResponse(uint8_t cmd, uint8_t *buf, size_t len, uint32_t timeout) {
+bool DTS6012M::readBytes(uint8_t *buf, size_t len, uint32_t timeout) {
     unsigned long start = millis();
     size_t idx = 0;
     while ((millis() - start) < timeout && idx < len) {
@@ -85,6 +85,44 @@ bool DTS6012M::readResponse(uint8_t cmd, uint8_t *buf, size_t len, uint32_t time
     return (idx == len);
 }
 
-// Parse one measurement frame (distance only)
-bool DTS6012M::readFrame(uint16_t &dist) {
-    // Expect at leas
+uint16_t DTS6012M::crc16(const uint8_t *data, size_t len) {
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < len; i++) {
+        crc ^= data[i];
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x0001) {
+                crc = (crc >> 1) ^ 0xA001;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    return crc;
+}
+
+bool DTS6012M::readFrame(DTS6012M_Frame &frame) {
+    // Look for header
+    while (_serial->available() && _serial->peek() != 0xA5) {
+        _serial->read();
+    }
+
+    const size_t frameLen = 23; // header + meta + 14 data + 2 CRC
+    uint8_t raw[frameLen];
+    if (!readBytes(raw, frameLen, 50)) return false;
+
+    // Verify CRC
+    uint16_t crcCalc = crc16(raw, frameLen - 2);
+    uint16_t crcRecv = (raw[frameLen - 2] << 8) | raw[frameLen - 1];
+    if (crcCalc != crcRecv) return false;
+
+    // Extract fields (little endian pairs)
+    frame.secondaryDistance  = (raw[7] << 8) | raw[6];
+    frame.secondaryCorrection= (raw[9] << 8) | raw[8];
+    frame.secondaryIntensity = (raw[11] << 8) | raw[10];
+    frame.primaryDistance    = (raw[13] << 8) | raw[12];
+    frame.primaryCorrection  = (raw[15] << 8) | raw[14];
+    frame.primaryIntensity   = (raw[17] << 8) | raw[16];
+    frame.sunlightBase       = (raw[19] << 8) | raw[18];
+
+    return true;
+}
