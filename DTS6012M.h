@@ -36,7 +36,8 @@ public:
     // ---- UART API ----
     bool startStream();               
     bool stopStream();                
-    bool readFrame(DTS6012M_Frame &frame);
+    bool readFrame(DTS6012M_Frame &frame);         // blocking
+    bool readFrameNonBlocking(DTS6012M_Frame &frame); // non-blocking state machine
 
 private:
     Interface _mode;
@@ -53,6 +54,11 @@ private:
     bool sendCommand(uint8_t cmd);
     bool readBytes(uint8_t *buf, size_t len, uint32_t timeout = 50);
     uint16_t crc16(const uint8_t *data, size_t len);
+
+    // State machine buffer
+    static const size_t FRAME_LEN = 23;
+    uint8_t _rxBuf[FRAME_LEN];
+    size_t _rxIndex = 0;
 };
 
 #endif
