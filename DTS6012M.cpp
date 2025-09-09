@@ -126,3 +126,40 @@ bool DTS6012M::readFrame(DTS6012M_Frame &frame) {
 
     return true;
 }
+
+
+// ---------------- Non-blocking UART parser ----------------
+bool DTS6012M::readFrameNonBlocking(DTS6012M_Frame &frame) {
+    while (_serial->available()) {
+        uint8_t b = _serial->read();
+
+        // Reset if buffer empty and we didn’t see header yet
+        if (_rxIndex == 0 && b != 0xA5) {
+            continue; // wait for header
+        }
+
+        _rxBuf[_rxIndex++] = b;
+
+        // If buffer full, process frame
+        if (_rxIndex >= FRAME_LEN) {
+            _rxIndex = 0;
+
+            // CRC check
+            uint16_t crcCalc = crc16(_rxBuf, FRAME_LEN - 2);
+            uint16_t crcRecv = (_rxBuf[FRAME_LEN - 2] << 8) | _rxBuf[FRAME_LEN - 1];
+            if (crcCalc != crcRecv) return false;
+
+            // Decode data section
+            frame.secondaryDistance  = (_rxBuf[7] << 8) | _rxBuf[6];
+            frame.secondaryCorrection= (_rxBuf[9] << 8) | _rxBuf[8];
+            frame.secondaryIntensity = (_rxBuf[11] << 8) | _rxBuf[10];
+            frame.primaryDistance    = (_rxBuf[13] << 8) | _rxBuf[12];
+            frame.primaryCorrection  = (_rxBuf[15] << 8) | _rxBuf[14];
+            frame.primaryIntensity   = (_rxBuf[17] << 8) | _rxBuf[16];
+            frame.sunlightBase       = (_rxBuf[19] << 8) | _rxBuf[18];
+
+            return true; // full valid frame
+        }
+    }
+    return false; // not complete yet
+}
