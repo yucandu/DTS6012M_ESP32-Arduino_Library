@@ -45,6 +45,7 @@ public:
     bool readDistance(uint16_t &distance_mm); // blocking (old)
     bool readDistanceNonBlocking(DTS6012M_I2CFrame &frame); // new
     bool readTestRegister(uint8_t &value);
+    bool readFrameI2CNonBlocking(DTS6012M_I2CFrame &frame); // new: non-blocking
 
     // ---- UART API ----
     bool startStream();               
