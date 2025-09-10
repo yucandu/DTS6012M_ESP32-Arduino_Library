@@ -17,9 +17,16 @@ struct DTS6012M_Frame {
 };
 
 struct DTS6012M_I2CFrame {
-    uint16_t distance;
+    uint16_t primaryDistance;
+    uint16_t secondaryDistance;
+    uint16_t temperatureCode;
+    uint16_t secondaryIntensity;
+    uint16_t primaryCorrection;
+    uint16_t primaryIntensity;
+    uint16_t sunlightBase;
     bool valid;
 };
+
 
 class DTS6012M {
 public:
