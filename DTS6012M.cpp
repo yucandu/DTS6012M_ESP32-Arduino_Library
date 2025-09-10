@@ -163,39 +163,35 @@ bool DTS6012M::readFrameNonBlocking(DTS6012M_Frame &frame) {
     }
     return false; // not complete yet
 }
-bool DTS6012M::readDistanceNonBlocking(DTS6012M_I2CFrame &frame) {
+bool DTS6012M::readFrameI2CNonBlocking(DTS6012M_I2CFrame &frame) {
     frame.valid = false;
 
-    // If not busy, start a new read
     if (!_i2cBusy) {
         _wire->beginTransmission(_i2cAddr);
-        _wire->write(0x00); // distance high register
+        _wire->write(0x00);
         if (_wire->endTransmission(false) != 0) return false;
 
-        _wire->requestFrom((int)_i2cAddr, 2, (int)true);
+        _wire->requestFrom((int)_i2cAddr, 14, (int)true);
         _i2cIndex = 0;
         _i2cBusy = true;
     }
 
-    // Collect available bytes
-    while (_wire->available() && _i2cIndex < 2) {
+    while (_wire->available() && _i2cIndex < 14) {
         _i2cBuf[_i2cIndex++] = _wire->read();
     }
 
-    // If full frame received
-    if (_i2cIndex >= 2) {
-        uint16_t raw = ((uint16_t)_i2cBuf[0] << 8) | _i2cBuf[1];
-        _i2cBusy = false;
+    if (_i2cIndex >= 14) {
+        frame.primaryDistance   = ((uint16_t)_i2cBuf[0] << 8) | _i2cBuf[1];
+        frame.secondaryDistance = ((uint16_t)_i2cBuf[4] << 8) | _i2cBuf[5];
+        frame.temperatureCode   = ((uint16_t)_i2cBuf[6] << 8) | _i2cBuf[7];
+        frame.secondaryIntensity= ((uint16_t)_i2cBuf[8] << 8) | _i2cBuf[9];
+        frame.primaryCorrection = ((uint16_t)_i2cBuf[10] << 8) | _i2cBuf[11];
+        frame.primaryIntensity  = ((uint16_t)_i2cBuf[12] << 8) | _i2cBuf[13];
+        frame.sunlightBase      = 0; // can add if available at 0x0E–0x0F
 
-        if (raw == 0xFFFF) {
-            // No target detected
-            frame.valid = false;
-            return false;
-        } else {
-            frame.distance = raw;
-            frame.valid = true;
-            return true;
-        }
+        frame.valid = (frame.primaryDistance != 0xFFFF);
+        _i2cBusy = false;
+        return frame.valid;
     }
 
     return false; // still waiting
