@@ -163,3 +163,40 @@ bool DTS6012M::readFrameNonBlocking(DTS6012M_Frame &frame) {
     }
     return false; // not complete yet
 }
+bool DTS6012M::readDistanceNonBlocking(DTS6012M_I2CFrame &frame) {
+    frame.valid = false;
+
+    // If not busy, start a new read
+    if (!_i2cBusy) {
+        _wire->beginTransmission(_i2cAddr);
+        _wire->write(0x00); // distance high register
+        if (_wire->endTransmission(false) != 0) return false;
+
+        _wire->requestFrom((int)_i2cAddr, 2, (int)true);
+        _i2cIndex = 0;
+        _i2cBusy = true;
+    }
+
+    // Collect available bytes
+    while (_wire->available() && _i2cIndex < 2) {
+        _i2cBuf[_i2cIndex++] = _wire->read();
+    }
+
+    // If full frame received
+    if (_i2cIndex >= 2) {
+        uint16_t raw = ((uint16_t)_i2cBuf[0] << 8) | _i2cBuf[1];
+        _i2cBusy = false;
+
+        if (raw == 0xFFFF) {
+            // No target detected
+            frame.valid = false;
+            return false;
+        } else {
+            frame.distance = raw;
+            frame.valid = true;
+            return true;
+        }
+    }
+
+    return false; // still waiting
+}
