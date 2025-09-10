@@ -16,6 +16,11 @@ struct DTS6012M_Frame {
     uint16_t sunlightBase;
 };
 
+struct DTS6012M_I2CFrame {
+    uint16_t distance;
+    bool valid;
+};
+
 class DTS6012M {
 public:
     enum Interface {
@@ -30,7 +35,8 @@ public:
     // ---- I2C API ----
     bool startMeasurement();
     bool stopMeasurement();
-    bool readDistance(uint16_t &distance_mm);
+    bool readDistance(uint16_t &distance_mm); // blocking (old)
+    bool readDistanceNonBlocking(DTS6012M_I2CFrame &frame); // new
     bool readTestRegister(uint8_t &value);
 
     // ---- UART API ----
@@ -49,7 +55,9 @@ private:
     bool writeReg(uint8_t reg, uint8_t value);
     bool readReg(uint8_t reg, uint8_t &value);
     bool readReg16(uint8_t regHigh, uint16_t &value);
-
+    uint8_t _i2cBuf[2];
+    uint8_t _i2cIndex = 0;
+    bool _i2cBusy = false;
     // UART helpers
     bool sendCommand(uint8_t cmd);
     bool readBytes(uint8_t *buf, size_t len, uint32_t timeout = 50);
